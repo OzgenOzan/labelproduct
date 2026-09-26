@@ -1,6 +1,8 @@
 import pandas as pd
 
-dict = {}
+MISSING_KEY = "<MISSING>"  # Sentinel for missing labelling keys (LP-1)
+
+code_map = {}  # Renamed from 'dict' (LP-3: do not shadow the builtin)
 
 df = pd.read_excel("filename.xlsx")
 
@@ -11,19 +13,22 @@ for index, row in df.iterrows():
     value = row['Active Ingredient']
     if pd.isna(value):
         nan_key_rows += 1
-        active_ingredient = value  # keep previous behavior for missing keys
+        # Map missing keys to an explicit sentinel so every missing row shares
+        # ONE deterministic code (LP-1). Previously the raw NaN was used as a
+        # dict key; NaN != NaN, so NaN rows could receive different codes.
+        active_ingredient = MISSING_KEY
     else:
         active_ingredient = str(value).strip().upper()
-    if(active_ingredient in dict):
-        df.at[index,'Product Code'] = dict[active_ingredient]
+    if(active_ingredient in code_map):
+        df.at[index,'Product Code'] = code_map[active_ingredient]
         
     else:
-        dict[active_ingredient] = product_code
+        code_map[active_ingredient] = product_code
         df.at[index,'Product Code'] = product_code
         product_code += 1
 
 if nan_key_rows:
-    print(f"Warning: {nan_key_rows} row(s) have a missing 'Active Ingredient' and were labelled without normalization.", flush=True)
+    print(f"Warning: {nan_key_rows} row(s) have a missing 'Active Ingredient' and were labelled with the {MISSING_KEY} sentinel.", flush=True)
 
 df['Product Code'] = df['Product Code'].astype(int)
         
